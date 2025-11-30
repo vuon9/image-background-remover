@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Upload, Image as ImageIcon, Sparkles } from 'lucide-react';
 import Toolbar from './components/Toolbar';
@@ -15,12 +16,25 @@ const App: React.FC = () => {
     tolerance: 15,
     smoothing: 0,
     manualMaskPreview: false,
+    manualToolMode: 'ADD',
   });
 
   const [triggerAutoRemove, setTriggerAutoRemove] = useState(0);
   const [triggerUndo, setTriggerUndo] = useState(0);
   const [triggerManualApply, setTriggerManualApply] = useState(0);
   const [processedImageOverride, setProcessedImageOverride] = useState<string | null>(null);
+
+  const generateTimestampName = () => {
+    const d = new Date();
+    const yy = d.getFullYear().toString().slice(-2);
+    const mm = (d.getMonth() + 1).toString().padStart(2, '0');
+    const dd = d.getDate().toString().padStart(2, '0');
+    const h = d.getHours().toString().padStart(2, '0');
+    const m = d.getMinutes().toString().padStart(2, '0');
+    const s = d.getSeconds().toString().padStart(2, '0');
+    const ms = d.getMilliseconds().toString();
+    return `rbr-photo-${yy}${mm}${dd}.${h}${m}${s}${ms}`;
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -33,8 +47,9 @@ const App: React.FC = () => {
             ...prev,
             originalImage: img,
             processedImage: null, // Reset processed
-            fileName: `rbr-photo-${Date.now()}`,
+            fileName: generateTimestampName(),
             manualMaskPreview: false,
+            manualToolMode: 'ADD',
           }));
           setProcessedImageOverride(null);
         };
@@ -123,8 +138,9 @@ const App: React.FC = () => {
                     ...prev,
                     originalImage: img,
                     processedImage: null,
-                    fileName: `rbr-photo-${Date.now()}`,
+                    fileName: generateTimestampName(),
                     manualMaskPreview: false,
+                    manualToolMode: 'ADD',
                 }));
                 setProcessedImageOverride(null);
             };
@@ -227,6 +243,7 @@ const App: React.FC = () => {
             triggerUndo={triggerUndo}
             triggerManualApply={triggerManualApply}
             manualMaskPreview={state.manualMaskPreview}
+            manualToolMode={state.manualToolMode}
             processedImageOverride={processedImageOverride}
             onProcessedImageUpdate={handleProcessedImageUpdate}
         />
@@ -242,6 +259,7 @@ const App: React.FC = () => {
             onToleranceChange={(val) => setState(prev => ({...prev, tolerance: val}))}
             onSmoothingChange={(val) => setState(prev => ({...prev, smoothing: val}))}
             onManualMaskPreviewChange={(val) => setState(prev => ({...prev, manualMaskPreview: val}))}
+            onManualToolModeChange={(mode) => setState(prev => ({...prev, manualToolMode: mode}))}
             onUploadClick={() => setState(prev => ({ ...prev, originalImage: null }))}
         />
       </div>

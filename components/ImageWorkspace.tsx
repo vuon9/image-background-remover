@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { removeBackgroundSmart } from '../utils/imageProcessing';
 
@@ -10,6 +11,7 @@ interface WorkspaceProps {
   triggerUndo: number;
   triggerManualApply: number;
   manualMaskPreview: boolean; // TRUE = Preview Result, FALSE = Show Red Mask
+  manualToolMode: 'ADD' | 'SUBTRACT';
   processedImageOverride: string | null;
   onProcessedImageUpdate: (dataUrl: string) => void;
 }
@@ -23,6 +25,7 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
   triggerUndo,
   triggerManualApply,
   manualMaskPreview,
+  manualToolMode,
   processedImageOverride,
   onProcessedImageUpdate
 }) => {
@@ -34,6 +37,7 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
   const maskLayerRef = useRef<HTMLCanvasElement | null>(null); // Current manual strokes (Red)
 
   const historyRef = useRef<ImageData[]>([]);
+  const maskHistoryRef = useRef<ImageData[]>([]); // Track mask strokes for undo
   
   // State
   const [scale, setScale] = useState(1);
@@ -101,10 +105,11 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
     displayCanvasRef.current.width = w;
     displayCanvasRef.current.height = h;
 
-    // Reset History
+    // Reset History on new image load
     if (baseCtx) {
        historyRef.current = [baseCtx.getImageData(0, 0, w, h)];
     }
+    maskHistoryRef.current = [];
 
     // Calc Scale
     const fitScale = Math.min(
@@ -136,12 +141,13 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
             ctx?.clearRect(0, 0, w, h);
             ctx?.drawImage(img, 0, 0, w, h);
             
-            // Clear mask
+            // Clear mask and mask history
             const maskCtx = maskLayerRef.current?.getContext('2d');
             maskCtx?.clearRect(0, 0, w, h);
+            maskHistoryRef.current = [];
 
-            // Update History
-            if (ctx) historyRef.current = [ctx.getImageData(0, 0, w, h)];
+            // Add to history
+            if (ctx) historyRef.current.push(ctx.getImageData(0, 0, w, h));
 
             renderCanvas();
             onProcessedImageUpdate(baseLayerRef.current!.toDataURL('image/png'));
@@ -166,12 +172,13 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
 
     removeBackgroundSmart(ctx, w, h, tolerance, smoothing);
     
-    // Clear mask on auto-remove? Yes, usually start fresh.
+    // Clear mask and mask history
     const maskCtx = maskLayerRef.current?.getContext('2d');
     maskCtx?.clearRect(0, 0, w, h);
+    maskHistoryRef.current = [];
 
-    // Save history
-    historyRef.current = [ctx.getImageData(0, 0, w, h)];
+    // Save history (PUSH, don't overwrite)
+    historyRef.current.push(ctx.getImageData(0, 0, w, h));
 
     renderCanvas();
     onProcessedImageUpdate(baseLayerRef.current.toDataURL('image/png'));
@@ -180,25 +187,29 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
 
   // --- Handle Undo ---
   useEffect(() => {
-     if (triggerUndo === 0 || !baseLayerRef.current) return;
+     if (triggerUndo === 0 || !baseLayerRef.current || !maskLayerRef.current) return;
      
-     if (historyRef.current.length > 0) {
-        // Pop last state? If we want undo, we go back to previous.
-        // Current state is history[length-1]. 
-        // We need to pop current, and use the one before.
-        if (historyRef.current.length > 1) {
-            historyRef.current.pop(); // Remove current
-            const prevState = historyRef.current[historyRef.current.length - 1];
-            
-            const ctx = baseLayerRef.current.getContext('2d');
-            ctx?.putImageData(prevState, 0, 0);
-            
-            // We do NOT clear mask on Undo of base image, unless we track mask history too.
-            // For simplicity, let's keep mask. User might want to apply same mask to old state.
-            
+     // 1. Try Undoing Mask Stroke first (if any manual strokes exist unapplied)
+     if (maskHistoryRef.current.length > 0) {
+        const prevMaskState = maskHistoryRef.current.pop();
+        const maskCtx = maskLayerRef.current.getContext('2d');
+        if (prevMaskState && maskCtx) {
+            maskCtx.putImageData(prevMaskState, 0, 0);
             renderCanvas();
-            onProcessedImageUpdate(baseLayerRef.current.toDataURL('image/png'));
         }
+        return; // Stop here, don't undo base layer
+     }
+
+     // 2. Fallback to Base Layer Undo (Previous applied actions)
+     if (historyRef.current.length > 1) {
+        historyRef.current.pop(); // Remove current state
+        const prevState = historyRef.current[historyRef.current.length - 1];
+        
+        const ctx = baseLayerRef.current.getContext('2d');
+        ctx?.putImageData(prevState, 0, 0);
+        
+        renderCanvas();
+        onProcessedImageUpdate(baseLayerRef.current.toDataURL('image/png'));
      }
   }, [triggerUndo]);
 
@@ -215,12 +226,15 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
       baseCtx.drawImage(maskLayerRef.current, 0, 0);
       baseCtx.globalCompositeOperation = 'source-over'; // Reset
 
-      // Clear mask layer
+      // Clear mask layer after apply and reset mask history
       maskCtx.clearRect(0, 0, maskLayerRef.current.width, maskLayerRef.current.height);
+      maskHistoryRef.current = [];
 
       // Save new state to history
       historyRef.current.push(baseCtx.getImageData(0, 0, baseLayerRef.current.width, baseLayerRef.current.height));
-      if (historyRef.current.length > 20) historyRef.current.shift();
+      
+      // Limit history size
+      if (historyRef.current.length > 30) historyRef.current.shift();
 
       renderCanvas();
       onProcessedImageUpdate(baseLayerRef.current.toDataURL('image/png'));
@@ -244,13 +258,33 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
       if (ctx) {
           ctx.beginPath();
           ctx.arc(x, y, brushSize, 0, Math.PI * 2);
-          ctx.fillStyle = '#ff0000'; // Pure red for mask data
+          
+          if (manualToolMode === 'ADD') {
+              ctx.globalCompositeOperation = 'source-over';
+              ctx.fillStyle = '#ff0000'; // Pure red for mask data
+          } else {
+              // SUBTRACT mode: Remove from mask
+              ctx.globalCompositeOperation = 'destination-out';
+              ctx.fillStyle = '#000000'; // Color doesn't matter for dest-out
+          }
+          
           ctx.fill();
+          ctx.globalCompositeOperation = 'source-over'; // Reset
           renderCanvas();
       }
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    // Save Mask History BEFORE drawing starts
+    if (maskLayerRef.current) {
+        const ctx = maskLayerRef.current.getContext('2d');
+        if (ctx) {
+             maskHistoryRef.current.push(ctx.getImageData(0, 0, maskLayerRef.current.width, maskLayerRef.current.height));
+             // Limit mask history for memory
+             if (maskHistoryRef.current.length > 20) maskHistoryRef.current.shift();
+        }
+    }
+
     setIsDrawing(true);
     const { x, y } = getMousePos(e);
     drawOnMask(x, y);
@@ -274,7 +308,7 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
       {/* Custom Cursor */}
       {showCursor && (
         <div 
-          className="fixed pointer-events-none border-2 border-pink-500 rounded-full z-50 bg-pink-500/10"
+          className={`fixed pointer-events-none border-2 rounded-full z-50 ${manualToolMode === 'ADD' ? 'border-pink-500 bg-pink-500/10' : 'border-blue-500 bg-blue-500/10'}`}
           style={{
              left: cursorX,
              top: cursorY,
@@ -310,7 +344,9 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
             {manualMaskPreview ? (
                 <span className="text-[10px] bg-green-900/50 px-2 py-0.5 rounded text-green-300 border border-green-800">Preview Mode</span>
             ) : (
-                <span className="text-[10px] bg-pink-900/50 px-2 py-0.5 rounded text-pink-300 border border-pink-800">Editing Mask</span>
+                <span className="text-[10px] bg-pink-900/50 px-2 py-0.5 rounded text-pink-300 border border-pink-800">
+                    {manualToolMode === 'ADD' ? 'Adding to Mask' : 'Cleaning Mask'}
+                </span>
             )}
         </div>
         

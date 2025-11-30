@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Eraser, Wand2, Download, Sparkles, Loader2, Upload, Bot, Zap, BrainCircuit, RotateCcw, Eye, EyeOff, Check } from 'lucide-react';
+import { Eraser, Wand2, Download, Sparkles, Loader2, Upload, Bot, Zap, BrainCircuit, RotateCcw, Eye, EyeOff, Check, Brush } from 'lucide-react';
 import { AppState } from '../types';
 
 interface ToolbarProps {
@@ -13,6 +14,7 @@ interface ToolbarProps {
   onToleranceChange: (val: number) => void;
   onSmoothingChange: (val: number) => void;
   onManualMaskPreviewChange: (val: boolean) => void;
+  onManualToolModeChange: (mode: 'ADD' | 'SUBTRACT') => void;
   onUploadClick: () => void;
 }
 
@@ -27,6 +29,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onToleranceChange,
   onSmoothingChange,
   onManualMaskPreviewChange,
+  onManualToolModeChange,
   onUploadClick
 }) => {
   const [activeTab, setActiveTab] = useState<'ALGO' | 'AI'>('ALGO');
@@ -161,17 +164,37 @@ const Toolbar: React.FC<ToolbarProps> = ({
             <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-2">
             <Eraser size={14} /> Manual Touch-up
             </label>
-            <button 
-                onClick={onUndo}
-                title="Undo (Ctrl+Z)"
-                className="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
-            >
-                <RotateCcw size={14} />
-            </button>
+            
+            <div className="flex items-center gap-1">
+                <button
+                    onClick={() => onManualToolModeChange('ADD')}
+                    title="Mark to Remove"
+                    className={`p-1.5 rounded transition-colors ${state.manualToolMode === 'ADD' ? 'bg-pink-600 text-white' : 'hover:bg-gray-700 text-gray-400 hover:text-white'}`}
+                >
+                    <Brush size={14} />
+                </button>
+                <button
+                    onClick={() => onManualToolModeChange('SUBTRACT')}
+                    title="Clean Mask (Un-mark)"
+                    className={`p-1.5 rounded transition-colors ${state.manualToolMode === 'SUBTRACT' ? 'bg-blue-600 text-white' : 'hover:bg-gray-700 text-gray-400 hover:text-white'}`}
+                >
+                    <Eraser size={14} />
+                </button>
+                <div className="w-px h-4 bg-gray-600 mx-1"></div>
+                <button 
+                    onClick={onUndo}
+                    title="Undo (Ctrl+Z)"
+                    className="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
+                >
+                    <RotateCcw size={14} />
+                </button>
+            </div>
         </div>
         
         <div className="bg-gray-700/50 p-3 rounded-lg border border-gray-600 space-y-4">
-          <p className="text-[10px] text-gray-400 mb-2">Mark areas to remove with the red brush.</p>
+          <p className="text-[10px] text-gray-400 mb-2">
+             {state.manualToolMode === 'ADD' ? 'Drawing RED marks area to remove.' : 'Using eraser to clean up the mask.'}
+          </p>
           
           {/* Brush Size Control */}
           <div className="flex items-center gap-4">
@@ -183,17 +206,17 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <input
                     type="range"
                     min="5"
-                    max="100"
+                    max="30"
                     value={state.brushSize}
                     onChange={(e) => onBrushSizeChange(Number(e.target.value))}
-                    className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-pink-500"
+                    className={`w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer ${state.manualToolMode === 'ADD' ? 'accent-pink-500' : 'accent-blue-500'}`}
                 />
              </div>
              
              {/* Visual Indicator on the Right */}
              <div className="w-12 h-12 flex-shrink-0 bg-gray-800 rounded-lg border border-gray-600 flex items-center justify-center overflow-hidden relative">
                  <div 
-                    className="rounded-full bg-pink-500"
+                    className={`rounded-full ${state.manualToolMode === 'ADD' ? 'bg-pink-500' : 'bg-blue-500'}`}
                     style={{ 
                         width: Math.min(state.brushSize, 40), 
                         height: Math.min(state.brushSize, 40),
@@ -233,7 +256,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
         <div className="mb-4">
             <p className="text-xs font-mono text-gray-400 mb-1">Filename:</p>
             <div className="bg-gray-900 px-3 py-2 rounded text-sm text-green-400 font-mono truncate border border-gray-700">
-                {state.fileName || 'image'}.png
+                {state.fileName}.png
             </div>
         </div>
         <button
