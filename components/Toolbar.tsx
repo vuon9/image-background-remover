@@ -231,10 +231,14 @@ const Toolbar: React.FC<ToolbarProps> = ({
           <div className="grid grid-cols-2 gap-2 pt-2">
              <button
                 onClick={() => onManualMaskPreviewChange(!state.manualMaskPreview)}
+                disabled={!state.hasManualEdits}
+                title={!state.hasManualEdits ? "Draw on the image to preview changes" : "Toggle preview of manual changes"}
                 className={`flex items-center justify-center gap-2 py-2 px-2 rounded-md text-xs font-medium transition-all border ${
-                    state.manualMaskPreview
-                    ? 'bg-pink-900/40 border-pink-500/50 text-pink-200'
-                    : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                    !state.hasManualEdits 
+                    ? 'bg-gray-800/50 border-gray-700 text-gray-600 cursor-not-allowed opacity-50' 
+                    : state.manualMaskPreview
+                        ? 'bg-pink-900/40 border-pink-500/50 text-pink-200'
+                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
                 }`}
              >
                 {state.manualMaskPreview ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -243,7 +247,13 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
              <button
                 onClick={onManualApply}
-                className="flex items-center justify-center gap-2 py-2 px-2 rounded-md text-xs font-medium bg-pink-600 hover:bg-pink-700 text-white transition-all shadow-lg"
+                disabled={!state.hasManualEdits}
+                title={!state.hasManualEdits ? "Draw on the image to enable apply" : "Apply manual changes to the image"}
+                className={`flex items-center justify-center gap-2 py-2 px-2 rounded-md text-xs font-medium transition-all shadow-lg ${
+                    !state.hasManualEdits 
+                    ? 'bg-gray-800 text-gray-600 cursor-not-allowed opacity-50' 
+                    : 'bg-pink-600 hover:bg-pink-700 text-white'
+                }`}
              >
                 <Check size={14} />
                 Apply

@@ -14,6 +14,7 @@ interface WorkspaceProps {
   manualToolMode: 'ADD' | 'SUBTRACT';
   processedImageOverride: string | null;
   onProcessedImageUpdate: (dataUrl: string) => void;
+  onManualMaskChange: (hasEdits: boolean) => void;
 }
 
 const ImageWorkspace: React.FC<WorkspaceProps> = ({
@@ -27,7 +28,8 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
   manualMaskPreview,
   manualToolMode,
   processedImageOverride,
-  onProcessedImageUpdate
+  onProcessedImageUpdate,
+  onManualMaskChange
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const displayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -110,6 +112,7 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
        historyRef.current = [baseCtx.getImageData(0, 0, w, h)];
     }
     maskHistoryRef.current = [];
+    onManualMaskChange(false); // Reset dirty flag
 
     // Calc Scale
     const fitScale = Math.min(
@@ -145,6 +148,7 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
             const maskCtx = maskLayerRef.current?.getContext('2d');
             maskCtx?.clearRect(0, 0, w, h);
             maskHistoryRef.current = [];
+            onManualMaskChange(false);
 
             // Add to history
             if (ctx) historyRef.current.push(ctx.getImageData(0, 0, w, h));
@@ -176,6 +180,7 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
     const maskCtx = maskLayerRef.current?.getContext('2d');
     maskCtx?.clearRect(0, 0, w, h);
     maskHistoryRef.current = [];
+    onManualMaskChange(false);
 
     // Save history (PUSH, don't overwrite)
     historyRef.current.push(ctx.getImageData(0, 0, w, h));
@@ -196,6 +201,11 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
         if (prevMaskState && maskCtx) {
             maskCtx.putImageData(prevMaskState, 0, 0);
             renderCanvas();
+        }
+        
+        // If we popped the last state, mask is effectively empty/clean
+        if (maskHistoryRef.current.length === 0) {
+            onManualMaskChange(false);
         }
         return; // Stop here, don't undo base layer
      }
@@ -229,6 +239,7 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
       // Clear mask layer after apply and reset mask history
       maskCtx.clearRect(0, 0, maskLayerRef.current.width, maskLayerRef.current.height);
       maskHistoryRef.current = [];
+      onManualMaskChange(false);
 
       // Save new state to history
       historyRef.current.push(baseCtx.getImageData(0, 0, baseLayerRef.current.width, baseLayerRef.current.height));
@@ -284,6 +295,9 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
              if (maskHistoryRef.current.length > 20) maskHistoryRef.current.shift();
         }
     }
+    
+    // Notify parent that edits have started
+    onManualMaskChange(true);
 
     setIsDrawing(true);
     const { x, y } = getMousePos(e);

@@ -24,4 +24,5 @@ export interface AppState {
   smoothing: number; // 0-10
   manualMaskPreview: boolean;
   manualToolMode: 'ADD' | 'SUBTRACT'; // ADD = Draw Mask (Red), SUBTRACT = Erase Mask
+  hasManualEdits: boolean;
 }

@@ -17,6 +17,7 @@ const App: React.FC = () => {
     smoothing: 0,
     manualMaskPreview: false,
     manualToolMode: 'ADD',
+    hasManualEdits: false,
   });
 
   const [triggerAutoRemove, setTriggerAutoRemove] = useState(0);
@@ -33,7 +34,7 @@ const App: React.FC = () => {
     const m = d.getMinutes().toString().padStart(2, '0');
     const s = d.getSeconds().toString().padStart(2, '0');
     const ms = d.getMilliseconds().toString();
-    return `rbr-photo-${yy}${mm}${dd}.${h}${m}${s}${ms}`;
+    return `ibr-photo-${yy}${mm}${dd}.${h}${m}${s}${ms}`;
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,6 +51,7 @@ const App: React.FC = () => {
             fileName: generateTimestampName(),
             manualMaskPreview: false,
             manualToolMode: 'ADD',
+            hasManualEdits: false,
           }));
           setProcessedImageOverride(null);
         };
@@ -109,6 +111,10 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, processedImage: dataUrl }));
   }, []);
 
+  const handleManualMaskChange = useCallback((hasEdits: boolean) => {
+    setState(prev => ({ ...prev, hasManualEdits: hasEdits }));
+  }, []);
+
   const handleDownload = () => {
     if (state.processedImage) {
       const link = document.createElement('a');
@@ -141,6 +147,7 @@ const App: React.FC = () => {
                     fileName: generateTimestampName(),
                     manualMaskPreview: false,
                     manualToolMode: 'ADD',
+                    hasManualEdits: false,
                 }));
                 setProcessedImageOverride(null);
             };
@@ -159,33 +166,46 @@ const App: React.FC = () => {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* Ambient Background Effects */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-             <div className="absolute -top-[20%] -left-[10%] w-[70%] h-[70%] bg-purple-900/20 rounded-full blur-[120px]"></div>
-             <div className="absolute top-[40%] -right-[10%] w-[60%] h-[60%] bg-blue-900/10 rounded-full blur-[100px]"></div>
+        {/* Background Image & Effects */}
+        <div className="absolute inset-0 z-0">
+            {/* High quality abstract background */}
+            <img 
+                src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop" 
+                alt="Abstract Background" 
+                className="w-full h-full object-cover opacity-30"
+            />
+            {/* Gradient Overlay for text readability */}
+            <div className="absolute inset-0 bg-gradient-to-b from-gray-900/80 via-gray-950/90 to-gray-950"></div>
+        </div>
+
+        {/* Ambient Bloom Effects */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+             <div className="absolute -top-[20%] -left-[10%] w-[70%] h-[70%] bg-purple-600/20 rounded-full blur-[120px] mix-blend-screen"></div>
+             <div className="absolute top-[40%] -right-[10%] w-[60%] h-[60%] bg-blue-600/10 rounded-full blur-[100px] mix-blend-screen"></div>
         </div>
 
         {/* Big Header Section */}
         <div className="z-10 text-center mb-16 relative">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-800/50 border border-gray-700 text-xs text-gray-400 mb-6 backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-800/50 border border-gray-700 text-xs text-gray-400 mb-6 backdrop-blur-sm shadow-lg">
                 <Sparkles size={12} className="text-yellow-400" />
                 <span>Powered by Gemini 2.5</span>
             </div>
-            <h1 className="text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 mb-6 tracking-tight leading-tight">
-                Image Background<br />Remover
+            <h1 className="text-6xl md:text-7xl font-extrabold text-white mb-6 tracking-tight leading-tight drop-shadow-2xl">
+                Image Background<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">Remover</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-400 font-light tracking-wide max-w-2xl mx-auto">
+            <p className="text-xl md:text-2xl text-gray-300 font-light tracking-wide max-w-2xl mx-auto drop-shadow-md">
                 Effortless Precision. Instantly Transparent.
             </p>
         </div>
 
         {/* Upload Card */}
         <div className={`
-            max-w-xl w-full bg-gray-900/40 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-12 text-center transition-all shadow-2xl relative z-10
-            ${isDragging ? 'border-purple-500 bg-gray-800/80 scale-105' : 'hover:border-gray-600'}
+            max-w-xl w-full bg-gray-900/60 backdrop-blur-2xl rounded-3xl border border-gray-700/50 p-12 text-center transition-all shadow-2xl relative z-10 group
+            ${isDragging ? 'border-purple-500 bg-gray-800/80 scale-105' : 'hover:border-gray-600 hover:bg-gray-900/70'}
         `}>
-          <div className="w-20 h-20 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-inner border border-gray-700">
-            <ImageIcon className="text-gray-400 w-10 h-10" />
+          <div className="w-20 h-20 bg-gray-800/50 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-inner border border-gray-700 group-hover:scale-110 transition-transform duration-300">
+            <ImageIcon className="text-gray-400 w-10 h-10 group-hover:text-white transition-colors" />
           </div>
           
           <h2 className="text-2xl font-semibold text-white mb-2">Upload an Image</h2>
@@ -194,7 +214,7 @@ const App: React.FC = () => {
             <span className="text-sm opacity-60">Supports PNG, JPG, WebP</span>
           </p>
           
-          <label className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold py-4 px-10 rounded-xl cursor-pointer transition-all hover:scale-105 shadow-lg shadow-purple-900/20">
+          <label className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold py-4 px-10 rounded-xl cursor-pointer transition-all hover:scale-105 shadow-lg shadow-purple-900/20 active:scale-95">
             <Upload className="w-5 h-5" />
             <span>Select Image</span>
             <input 
@@ -206,7 +226,7 @@ const App: React.FC = () => {
           </label>
         </div>
         
-        <div className="absolute bottom-8 text-gray-600 text-sm">
+        <div className="absolute bottom-8 text-gray-500 text-sm z-10">
             Privacy First • Local Processing Available • AI Enhanced
         </div>
       </div>
@@ -217,7 +237,7 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-screen bg-gray-900 overflow-hidden">
       {/* Minimal Header */}
-      <header className="h-14 bg-gray-950 border-b border-gray-800 flex items-center px-6 justify-between shrink-0 z-20">
+      <header className="h-14 bg-gray-950 border-b border-gray-800 flex items-center px-6 justify-between shrink-0 z-20 relative">
           <div className="flex items-center gap-3 select-none">
              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-900/20">
                 <ImageIcon className="text-white w-5 h-5" />
@@ -246,6 +266,7 @@ const App: React.FC = () => {
             manualToolMode={state.manualToolMode}
             processedImageOverride={processedImageOverride}
             onProcessedImageUpdate={handleProcessedImageUpdate}
+            onManualMaskChange={handleManualMaskChange}
         />
         
         <Toolbar 
