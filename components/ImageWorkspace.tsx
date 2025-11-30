@@ -7,6 +7,7 @@ interface WorkspaceProps {
   tolerance: number;
   smoothing: number;
   triggerAutoRemove: number; // Increment to trigger
+  triggerUndo: number; // Increment to trigger undo
   processedImageOverride: string | null; // For AI generated result
   onProcessedImageUpdate: (dataUrl: string) => void;
 }
@@ -17,15 +18,22 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
   tolerance,
   smoothing,
   triggerAutoRemove,
+  triggerUndo,
   processedImageOverride,
   onProcessedImageUpdate
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const historyRef = useRef<ImageData[]>([]);
   
   // State for canvas scaling to fit screen
   const [scale, setScale] = useState(1);
   const [isDrawing, setIsDrawing] = useState(false);
+  
+  // Custom Cursor State
+  const [cursorX, setCursorX] = useState(0);
+  const [cursorY, setCursorY] = useState(0);
+  const [showCursor, setShowCursor] = useState(false);
   
   // Initialize Canvas
   useEffect(() => {
@@ -42,6 +50,8 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
       // Draw initial image
       ctx.drawImage(originalImage, 0, 0);
       onProcessedImageUpdate(canvas.toDataURL('image/png'));
+      // Reset history
+      historyRef.current = [];
     }
 
     // Calculate fit scale
@@ -63,6 +73,10 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
             ctx?.clearRect(0, 0, img.width, img.height);
             ctx?.drawImage(img, 0, 0);
             onProcessedImageUpdate(canvasRef.current!.toDataURL('image/png'));
+            // Save state to history (start of new chain)
+            if (ctx) {
+               historyRef.current = [ctx.getImageData(0, 0, img.width, img.height)];
+            }
         };
         img.src = processedImageOverride;
     }
@@ -85,11 +99,44 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
 
     removeBackgroundSmart(ctx, canvas.width, canvas.height, tolerance, smoothing);
     onProcessedImageUpdate(canvas.toDataURL('image/png'));
+    
+    // Save to history
+    historyRef.current = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
 
   }, [triggerAutoRemove, originalImage, tolerance, smoothing]);
 
+  // Handle Undo
+  useEffect(() => {
+     if (triggerUndo === 0) return;
+     const canvas = canvasRef.current;
+     const ctx = canvas?.getContext('2d');
+     if (!canvas || !ctx || historyRef.current.length === 0) return;
 
-  // Mouse Events for Eraser
+     // Pop current state (if we are treating history as 'previous' states, we need to handle it carefully)
+     // Strategy: historyRef contains previous states. 
+     const previousState = historyRef.current.pop();
+     if (previousState) {
+        ctx.putImageData(previousState, 0, 0);
+        onProcessedImageUpdate(canvas.toDataURL('image/png'));
+     }
+
+  }, [triggerUndo]);
+
+  const saveToHistory = () => {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d', { willReadFrequently: true });
+      if (canvas && ctx) {
+          const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          historyRef.current.push(data);
+          // Limit history size to prevent memory issues
+          if (historyRef.current.length > 20) {
+              historyRef.current.shift();
+          }
+      }
+  };
+
+
+  // Mouse Events for Eraser & Cursor
   const getMousePos = (e: React.MouseEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -101,6 +148,9 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    // Save state before modifying
+    saveToHistory();
+
     setIsDrawing(true);
     const { x, y } = getMousePos(e);
     const canvas = canvasRef.current;
@@ -111,6 +161,10 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    // Update Custom Cursor Position
+    setCursorX(e.clientX);
+    setCursorY(e.clientY);
+
     if (!isDrawing) return;
     const { x, y } = getMousePos(e);
     const canvas = canvasRef.current;
@@ -131,6 +185,20 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
   return (
     <div className="flex-1 flex gap-4 p-6 h-full overflow-hidden bg-gray-900 relative">
       
+      {/* Custom Cursor */}
+      {showCursor && (
+        <div 
+          className="fixed pointer-events-none border-2 border-pink-500 rounded-full z-50 bg-pink-500/10"
+          style={{
+             left: cursorX,
+             top: cursorY,
+             width: brushSize * 2 * scale, // Scale cursor to match canvas visual zoom
+             height: brushSize * 2 * scale,
+             transform: 'translate(-50%, -50%)'
+          }}
+        ></div>
+      )}
+
       {/* Original Image View */}
       <div className="flex-1 flex flex-col min-w-0">
         <h3 className="text-gray-400 mb-2 font-medium text-center uppercase text-sm tracking-wider">Original</h3>
@@ -159,20 +227,18 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
             ref={containerRef}
             className="flex-1 bg-gray-800 rounded-xl border border-gray-700 flex items-center justify-center p-4 overflow-hidden relative shadow-inner"
         >
-            {/* Checkerboard removed to match original background style */}
-            
             <canvas
                 ref={canvasRef}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
+                onMouseLeave={() => { handleMouseUp(); setShowCursor(false); }}
+                onMouseEnter={() => setShowCursor(true)}
                 style={{ 
                     transform: `scale(${scale})`,
                     transformOrigin: 'center',
-                    cursor: 'crosshair',
                 }}
-                className="z-10" // Removed shadow-2xl and rounded to remove the "box" look around transparent images
+                className="z-10 cursor-none" // Hide default cursor
             />
         </div>
       </div>

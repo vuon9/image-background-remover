@@ -1,5 +1,5 @@
-import React from 'react';
-import { Eraser, Wand2, Download, Sparkles, Loader2, Upload, Bot } from 'lucide-react';
+import React, { useState } from 'react';
+import { Eraser, Wand2, Download, Sparkles, Loader2, Upload, Bot, Zap, BrainCircuit, RotateCcw } from 'lucide-react';
 import { AppState } from '../types';
 
 interface ToolbarProps {
@@ -7,6 +7,7 @@ interface ToolbarProps {
   onAutoRemove: () => void;
   onAiRemove: () => void;
   onDownload: () => void;
+  onUndo: () => void;
   onBrushSizeChange: (size: number) => void;
   onToleranceChange: (val: number) => void;
   onSmoothingChange: (val: number) => void;
@@ -18,11 +19,14 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onAutoRemove,
   onAiRemove,
   onDownload,
+  onUndo,
   onBrushSizeChange,
   onToleranceChange,
   onSmoothingChange,
   onUploadClick
 }) => {
+  const [activeTab, setActiveTab] = useState<'ALGO' | 'AI'>('ALGO');
+
   return (
     <div className="h-full bg-gray-800 border-l border-gray-700 flex flex-col p-4 w-80 space-y-6 overflow-y-auto">
       
@@ -46,79 +50,121 @@ const Toolbar: React.FC<ToolbarProps> = ({
         </button>
       </div>
 
-      {/* AI Capabilities */}
-      <div className="space-y-3 pb-4 border-b border-gray-700">
-         <label className="text-xs font-semibold text-purple-300 uppercase tracking-wider flex items-center gap-2">
-           <Bot size={14} /> AI Generation
+      {/* Removal Method Section */}
+      <div className="pb-4 border-b border-gray-700">
+         <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-3 block">
+            Removal Method
          </label>
-         <button
-          onClick={onAiRemove}
-          disabled={state.isProcessing}
-          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white py-3 px-4 rounded-lg font-medium transition-all shadow-lg"
-        >
-          {state.isProcessing ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-          <span>Gemini 2.5 Remove</span>
-        </button>
-        <p className="text-[10px] text-gray-500 leading-tight">
-          Uses Google Gemini 2.5 Image model to intelligently identify and remove the background.
-        </p>
-      </div>
 
-      {/* Algorithmic Auto Remove */}
-      <div className="space-y-4">
-        <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
-          Algorithmic Detection
-        </label>
-        
-        <div className="space-y-3 bg-gray-700/30 p-3 rounded-lg border border-gray-700">
-            {/* Tolerance */}
-            <div className="space-y-1">
-                <div className="flex justify-between text-xs text-gray-400">
-                    <span>Color Tolerance</span>
-                    <span>{state.tolerance}%</span>
-                </div>
-                <input
-                    type="range"
-                    min="1"
-                    max="100"
-                    value={state.tolerance}
-                    onChange={(e) => onToleranceChange(Number(e.target.value))}
-                    className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-purple-500"
-                />
-            </div>
-
-             {/* Smoothing */}
-             <div className="space-y-1">
-                <div className="flex justify-between text-xs text-gray-400">
-                    <span>Smooth Edges</span>
-                    <span>{state.smoothing > 0 ? state.smoothing : 'Off'}</span>
-                </div>
-                <input
-                    type="range"
-                    min="0"
-                    max="10"
-                    value={state.smoothing}
-                    onChange={(e) => onSmoothingChange(Number(e.target.value))}
-                    className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-            </div>
-
+         {/* Tabs */}
+         <div className="flex p-1 bg-gray-900/50 rounded-lg mb-4 border border-gray-700">
             <button
-            onClick={onAutoRemove}
-            disabled={state.isProcessing}
-            className="w-full flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white py-2 px-4 rounded-lg font-medium transition-all text-sm"
+               onClick={() => setActiveTab('ALGO')}
+               className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-md transition-all ${
+                   activeTab === 'ALGO' 
+                   ? 'bg-gray-700 text-white shadow-sm ring-1 ring-gray-600' 
+                   : 'text-gray-400 hover:text-gray-200'
+               }`}
             >
-            <Wand2 size={16} />
-            <span>Apply Smart Remove</span>
+               <Zap size={14} />
+               Fast Mode
             </button>
-        </div>
+            <button
+               onClick={() => setActiveTab('AI')}
+               className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-md transition-all ${
+                   activeTab === 'AI' 
+                   ? 'bg-gradient-to-r from-blue-900/40 to-purple-900/40 text-blue-200 shadow-sm ring-1 ring-blue-500/30' 
+                   : 'text-gray-400 hover:text-gray-200'
+               }`}
+            >
+               <BrainCircuit size={14} />
+               AI Model
+            </button>
+         </div>
+
+         {/* Content - Algorithmic */}
+         {activeTab === 'ALGO' && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="space-y-3 bg-gray-700/30 p-3 rounded-lg border border-gray-700">
+                    {/* Tolerance */}
+                    <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-gray-400">
+                            <span>Color Tolerance</span>
+                            <span>{state.tolerance}%</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="1"
+                            max="100"
+                            value={state.tolerance}
+                            onChange={(e) => onToleranceChange(Number(e.target.value))}
+                            className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                        />
+                    </div>
+
+                    {/* Smoothing */}
+                    <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-gray-400">
+                            <span>Smooth Edges</span>
+                            <span>{state.smoothing > 0 ? state.smoothing : 'Off'}</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="10"
+                            value={state.smoothing}
+                            onChange={(e) => onSmoothingChange(Number(e.target.value))}
+                            className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                        />
+                    </div>
+
+                    <button
+                        onClick={onAutoRemove}
+                        disabled={state.isProcessing}
+                        className="w-full flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white py-2 px-4 rounded-lg font-medium transition-all text-sm mt-2"
+                    >
+                        <Wand2 size={16} />
+                        <span>Apply Removal</span>
+                    </button>
+                </div>
+            </div>
+         )}
+
+         {/* Content - AI */}
+         {activeTab === 'AI' && (
+             <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 p-3 rounded-lg border border-blue-500/20 space-y-3">
+                     <p className="text-[10px] text-blue-200/70 leading-relaxed">
+                        Uses <strong>Gemini 2.5</strong> to intelligently understand the scene and separate the subject from the background. Best for complex images.
+                     </p>
+                     
+                     <button
+                        onClick={onAiRemove}
+                        disabled={state.isProcessing}
+                        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-white py-3 px-4 rounded-lg font-medium transition-all shadow-lg"
+                    >
+                        {state.isProcessing ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
+                        <span>Process with Gemini</span>
+                    </button>
+                </div>
+             </div>
+         )}
       </div>
 
       {/* Manual Tools */}
-      <div className="pt-2 space-y-4">
-        <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-2">
-          <Eraser size={14} /> Manual Touch-up
-        </label>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+            <Eraser size={14} /> Manual Touch-up
+            </label>
+            <button 
+                onClick={onUndo}
+                title="Undo (Ctrl+Z)"
+                className="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
+            >
+                <RotateCcw size={14} />
+            </button>
+        </div>
         
         <div className="bg-gray-700/50 p-3 rounded-lg border border-gray-600">
           <p className="text-[10px] text-gray-400 mb-3">Click and drag on the right image to erase parts manually.</p>

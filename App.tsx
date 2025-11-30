@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { Upload, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Upload, Image as ImageIcon, Sparkles } from 'lucide-react';
 import Toolbar from './components/Toolbar';
 import ImageWorkspace from './components/ImageWorkspace';
 import { AppState } from './types';
@@ -19,6 +19,7 @@ const App: React.FC = () => {
   });
 
   const [triggerAutoRemove, setTriggerAutoRemove] = useState(0);
+  const [triggerUndo, setTriggerUndo] = useState(0);
   const [processedImageOverride, setProcessedImageOverride] = useState<string | null>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,6 +69,22 @@ const App: React.FC = () => {
         setState(prev => ({ ...prev, isProcessing: false }));
     }
   };
+
+  const handleUndo = () => {
+      setTriggerUndo(prev => prev + 1);
+  };
+
+  // Keyboard shortcut for Undo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleProcessedImageUpdate = useCallback((dataUrl: string) => {
     setState(prev => {
@@ -135,26 +152,48 @@ const App: React.FC = () => {
   if (!state.originalImage) {
     return (
       <div 
-        className="min-h-screen bg-gray-900 flex items-center justify-center p-4"
+        className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4 relative overflow-hidden"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+        {/* Ambient Background Effects */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+             <div className="absolute -top-[20%] -left-[10%] w-[70%] h-[70%] bg-purple-900/20 rounded-full blur-[120px]"></div>
+             <div className="absolute top-[40%] -right-[10%] w-[60%] h-[60%] bg-blue-900/10 rounded-full blur-[100px]"></div>
+        </div>
+
+        {/* Big Header Section */}
+        <div className="z-10 text-center mb-16 relative">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-800/50 border border-gray-700 text-xs text-gray-400 mb-6 backdrop-blur-sm">
+                <Sparkles size={12} className="text-yellow-400" />
+                <span>Powered by Gemini 2.5</span>
+            </div>
+            <h1 className="text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 mb-6 tracking-tight leading-tight">
+                Image Background<br />Remover
+            </h1>
+            <p className="text-xl md:text-2xl text-gray-400 font-light tracking-wide max-w-2xl mx-auto">
+                Effortless Precision. Instantly Transparent.
+            </p>
+        </div>
+
+        {/* Upload Card */}
         <div className={`
-            max-w-xl w-full bg-gray-800 rounded-2xl border-2 border-dashed p-12 text-center transition-all
-            ${isDragging ? 'border-purple-500 bg-gray-800/80 scale-105' : 'border-gray-700'}
+            max-w-xl w-full bg-gray-900/40 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-12 text-center transition-all shadow-2xl relative z-10
+            ${isDragging ? 'border-purple-500 bg-gray-800/80 scale-105' : 'hover:border-gray-600'}
         `}>
-          <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="w-20 h-20 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-inner border border-gray-700">
             <ImageIcon className="text-gray-400 w-10 h-10" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-4">Background Remover Pro</h1>
-          <p className="text-gray-400 mb-8 text-lg">
-            Upload an image to smart-remove the background. <br />
-            Includes Gemini 2.5 AI Tools.
+          
+          <h2 className="text-2xl font-semibold text-white mb-2">Upload an Image</h2>
+          <p className="text-gray-400 mb-8">
+            Drag & drop your file here, or click to browse.<br/>
+            <span className="text-sm opacity-60">Supports PNG, JPG, WebP</span>
           </p>
           
-          <label className="inline-flex items-center gap-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-8 rounded-xl cursor-pointer transition-transform hover:scale-105 shadow-lg shadow-purple-900/30">
-            <Upload className="w-6 h-6" />
+          <label className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold py-4 px-10 rounded-xl cursor-pointer transition-all hover:scale-105 shadow-lg shadow-purple-900/20">
+            <Upload className="w-5 h-5" />
             <span>Select Image</span>
             <input 
               type="file" 
@@ -163,34 +202,59 @@ const App: React.FC = () => {
               onChange={handleImageUpload}
             />
           </label>
-          <p className="mt-4 text-sm text-gray-500">or drag and drop here</p>
+        </div>
+        
+        <div className="absolute bottom-8 text-gray-600 text-sm">
+            Privacy First • Local Processing Available • AI Enhanced
         </div>
       </div>
     );
   }
 
+  // Second Screen: Editor
   return (
-    <div className="flex h-screen bg-gray-900 overflow-hidden">
-      <ImageWorkspace
-        originalImage={state.originalImage}
-        brushSize={state.brushSize}
-        tolerance={state.tolerance}
-        smoothing={state.smoothing}
-        triggerAutoRemove={triggerAutoRemove}
-        processedImageOverride={processedImageOverride}
-        onProcessedImageUpdate={handleProcessedImageUpdate}
-      />
-      
-      <Toolbar 
-        state={state}
-        onAutoRemove={handleAutoRemove}
-        onAiRemove={handleAiRemove}
-        onDownload={handleDownload}
-        onBrushSizeChange={(val) => setState(prev => ({...prev, brushSize: val}))}
-        onToleranceChange={(val) => setState(prev => ({...prev, tolerance: val}))}
-        onSmoothingChange={(val) => setState(prev => ({...prev, smoothing: val}))}
-        onUploadClick={() => setState(prev => ({ ...prev, originalImage: null }))}
-      />
+    <div className="flex flex-col h-screen bg-gray-900 overflow-hidden">
+      {/* Minimal Header */}
+      <header className="h-14 bg-gray-950 border-b border-gray-800 flex items-center px-6 justify-between shrink-0 z-20">
+          <div className="flex items-center gap-3 select-none">
+             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-900/20">
+                <ImageIcon className="text-white w-5 h-5" />
+             </div>
+             <span className="font-bold text-lg text-gray-200 tracking-tight">Image Background Remover</span>
+          </div>
+          
+          <button 
+             onClick={() => setState(prev => ({...prev, originalImage: null}))}
+             className="text-xs text-gray-400 hover:text-white transition-colors"
+          >
+             Back to Home
+          </button>
+      </header>
+
+      <div className="flex-1 flex overflow-hidden">
+        <ImageWorkspace
+            originalImage={state.originalImage}
+            brushSize={state.brushSize}
+            tolerance={state.tolerance}
+            smoothing={state.smoothing}
+            triggerAutoRemove={triggerAutoRemove}
+            triggerUndo={triggerUndo}
+            processedImageOverride={processedImageOverride}
+            onProcessedImageUpdate={handleProcessedImageUpdate}
+        />
+        
+        <Toolbar 
+            state={state}
+            onAutoRemove={handleAutoRemove}
+            onAiRemove={handleAiRemove}
+            onDownload={handleDownload}
+            onUndo={handleUndo}
+            onBrushSizeChange={(val) => setState(prev => ({...prev, brushSize: val}))}
+            onToleranceChange={(val) => setState(prev => ({...prev, tolerance: val}))}
+            onSmoothingChange={(val) => setState(prev => ({...prev, smoothing: val}))}
+            onUploadClick={() => setState(prev => ({ ...prev, originalImage: null }))}
+        />
+      </div>
     </div>
   );
 };
