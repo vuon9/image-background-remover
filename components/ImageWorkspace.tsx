@@ -1,12 +1,13 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { removeBackgroundSmart } from '../utils/imageProcessing';
+import { removeBackgroundSmart, removeBackgroundGrabCut } from '../utils/imageProcessing';
 
 interface WorkspaceProps {
   originalImage: HTMLImageElement;
   brushSize: number;
   tolerance: number;
   smoothing: number;
+  algorithm: 'FLOOD_FILL' | 'GRABCUT';
   triggerAutoRemove: number;
   triggerUndo: number;
   triggerManualApply: number;
@@ -22,6 +23,7 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
   brushSize,
   tolerance,
   smoothing,
+  algorithm,
   triggerAutoRemove,
   triggerUndo,
   triggerManualApply,
@@ -174,7 +176,12 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
     ctx.clearRect(0, 0, w, h);
     ctx.drawImage(originalImage, 0, 0);
 
-    removeBackgroundSmart(ctx, w, h, tolerance, smoothing);
+    // CHOOSE ALGORITHM
+    if (algorithm === 'GRABCUT') {
+        removeBackgroundGrabCut(ctx, w, h, tolerance, smoothing);
+    } else {
+        removeBackgroundSmart(ctx, w, h, tolerance, smoothing);
+    }
     
     // Clear mask and mask history
     const maskCtx = maskLayerRef.current?.getContext('2d');
@@ -188,7 +195,7 @@ const ImageWorkspace: React.FC<WorkspaceProps> = ({
     renderCanvas();
     onProcessedImageUpdate(baseLayerRef.current.toDataURL('image/png'));
 
-  }, [triggerAutoRemove, originalImage, tolerance, smoothing]);
+  }, [triggerAutoRemove, originalImage, tolerance, smoothing, algorithm]);
 
   // --- Handle Undo ---
   useEffect(() => {

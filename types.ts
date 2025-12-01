@@ -25,4 +25,5 @@ export interface AppState {
   manualMaskPreview: boolean;
   manualToolMode: 'ADD' | 'SUBTRACT'; // ADD = Draw Mask (Red), SUBTRACT = Erase Mask
   hasManualEdits: boolean;
+  algorithm: 'FLOOD_FILL' | 'GRABCUT';
 }

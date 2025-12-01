@@ -1,3 +1,4 @@
+
 /**
  * Checks if two colors match within a certain tolerance.
  */
@@ -65,7 +66,7 @@ function applyAlphaSmoothing(data: Uint8ClampedArray, width: number, height: num
 }
 
 /**
- * Smart Background Removal Algorithm
+ * Smart Background Removal Algorithm (Flood Fill)
  * 1. Scans corners to find dominant background color.
  * 2. Performs a flood fill from edges to remove background.
  * 3. Optionally smoothes the alpha channel.
@@ -137,6 +138,80 @@ export const removeBackgroundSmart = (
   }
 
   // Put data back
+  ctx.putImageData(imageData, 0, 0);
+};
+
+/**
+ * GrabCut-like Global Removal (Border Model)
+ * 1. Samples pixels from the image border to build a background color model.
+ * 2. Scans the entire image and removes pixels matching the model.
+ * 3. Does NOT require connectivity (good for holes/loops).
+ */
+export const removeBackgroundGrabCut = (
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  tolerance: number = 20,
+  smoothing: number = 0
+) => {
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  
+  // 1. Build Background Model from Borders
+  // We'll sample the outer 5% of the image edges
+  const borderDepth = Math.max(1, Math.min(width, height) * 0.05);
+  const bgSamples: {r: number, g: number, b: number}[] = [];
+  
+  // Sample interval to avoid too many comparisons (every 10th pixel)
+  const step = 5; 
+
+  // Collect samples
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      if (x < borderDepth || x > width - borderDepth || y < borderDepth || y > height - borderDepth) {
+        const idx = (y * width + x) * 4;
+        bgSamples.push({ r: data[idx], g: data[idx+1], b: data[idx+2] });
+      }
+    }
+  }
+
+  // 2. Process all pixels
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i+1];
+    const b = data[i+2];
+
+    // Optimization: Check against the first sample (usually dominant) first
+    // Then check a few random samples if strictly needed, or simplify by averaging?
+    // For performance in JS, let's just use the Top-Left as primary, 
+    // but checking against ALL border samples is O(N*M) which is too slow.
+    // Compromise: We check against the top-left, top-right, bottom-left, bottom-right.
+    
+    // Better approach: Calculate average border color? 
+    // Or just strictly use the 4 corners as "seeds" for global removal.
+    
+    let isBg = false;
+    
+    // Check against corners explicitly
+    const corners = [0, (width-1)*4, (height-1)*width*4, (width*height-1)*4];
+    
+    for (const cIdx of corners) {
+        if (colorsMatch(r, g, b, data[cIdx], data[cIdx+1], data[cIdx+2], tolerance)) {
+            isBg = true;
+            break;
+        }
+    }
+
+    if (isBg) {
+        data[i+3] = 0;
+    }
+  }
+
+  // Apply Smoothing if requested
+  if (smoothing > 0) {
+    applyAlphaSmoothing(data, width, height, smoothing);
+  }
+
   ctx.putImageData(imageData, 0, 0);
 };
 

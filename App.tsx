@@ -18,6 +18,7 @@ const App: React.FC = () => {
     manualMaskPreview: false,
     manualToolMode: 'ADD',
     hasManualEdits: false,
+    algorithm: 'FLOOD_FILL',
   });
 
   const [triggerAutoRemove, setTriggerAutoRemove] = useState(0);
@@ -259,6 +260,7 @@ const App: React.FC = () => {
             brushSize={state.brushSize}
             tolerance={state.tolerance}
             smoothing={state.smoothing}
+            algorithm={state.algorithm}
             triggerAutoRemove={triggerAutoRemove}
             triggerUndo={triggerUndo}
             triggerManualApply={triggerManualApply}
@@ -279,6 +281,7 @@ const App: React.FC = () => {
             onBrushSizeChange={(val) => setState(prev => ({...prev, brushSize: val}))}
             onToleranceChange={(val) => setState(prev => ({...prev, tolerance: val}))}
             onSmoothingChange={(val) => setState(prev => ({...prev, smoothing: val}))}
+            onAlgorithmChange={(val) => setState(prev => ({...prev, algorithm: val}))}
             onManualMaskPreviewChange={(val) => setState(prev => ({...prev, manualMaskPreview: val}))}
             onManualToolModeChange={(mode) => setState(prev => ({...prev, manualToolMode: mode}))}
             onUploadClick={() => setState(prev => ({ ...prev, originalImage: null }))}

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Eraser, Wand2, Download, Sparkles, Loader2, Upload, Bot, Zap, BrainCircuit, RotateCcw, Eye, EyeOff, Check, Brush } from 'lucide-react';
+import { Eraser, Wand2, Download, Sparkles, Loader2, Upload, Bot, Zap, BrainCircuit, RotateCcw, Eye, EyeOff, Check, Brush, ScanLine, Layers } from 'lucide-react';
 import { AppState } from '../types';
 
 interface ToolbarProps {
@@ -13,6 +13,7 @@ interface ToolbarProps {
   onBrushSizeChange: (size: number) => void;
   onToleranceChange: (val: number) => void;
   onSmoothingChange: (val: number) => void;
+  onAlgorithmChange: (val: 'FLOOD_FILL' | 'GRABCUT') => void;
   onManualMaskPreviewChange: (val: boolean) => void;
   onManualToolModeChange: (mode: 'ADD' | 'SUBTRACT') => void;
   onUploadClick: () => void;
@@ -28,6 +29,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onBrushSizeChange,
   onToleranceChange,
   onSmoothingChange,
+  onAlgorithmChange,
   onManualMaskPreviewChange,
   onManualToolModeChange,
   onUploadClick
@@ -93,6 +95,32 @@ const Toolbar: React.FC<ToolbarProps> = ({
          {activeTab === 'ALGO' && (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
                 <div className="space-y-3 bg-gray-700/30 p-3 rounded-lg border border-gray-700">
+                    
+                    {/* Algorithm Select */}
+                    <div className="space-y-1">
+                        <label className="text-xs text-gray-400 block mb-1">Algorithm</label>
+                        <div className="relative">
+                            <select 
+                                value={state.algorithm}
+                                onChange={(e) => onAlgorithmChange(e.target.value as 'FLOOD_FILL' | 'GRABCUT')}
+                                className="w-full bg-gray-800 border border-gray-600 text-white text-xs rounded-md py-2 px-2 appearance-none focus:ring-1 focus:ring-purple-500 outline-none"
+                            >
+                                <option value="FLOOD_FILL">Flood Fill (Default)</option>
+                                <option value="GRABCUT">GrabCut (Border Model)</option>
+                            </select>
+                            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400">
+                                <ScanLine size={12} />
+                            </div>
+                        </div>
+                        <p className="text-[10px] text-gray-500 pt-1">
+                            {state.algorithm === 'FLOOD_FILL' 
+                                ? 'Best for solid backgrounds connected to edges.' 
+                                : 'Removes background colors globally. Good for "holes".'}
+                        </p>
+                    </div>
+
+                    <div className="w-full h-px bg-gray-600/50 my-2"></div>
+
                     {/* Tolerance */}
                     <div className="space-y-1">
                         <div className="flex justify-between text-xs text-gray-400">
